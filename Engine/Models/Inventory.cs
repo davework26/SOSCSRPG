@@ -1,0 +1,84 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using Engine.Services;
+using Newtonsoft.Json;
+
+namespace Engine.Models
+{
+    public class Inventory
+    {
+        #region Backing variables
+
+        private readonly List<GameItem> _backingInventory = 
+            new List<GameItem>();
+
+        private readonly List<GroupedInventoryItem> _backingGroupInventoryItems =
+            new List<GroupedInventoryItem>();
+
+        #endregion
+
+        #region Properties
+
+        public IReadOnlyList<GameItem> Items => _backingInventory.AsReadOnly();
+
+        [JsonIgnore]
+        public IReadOnlyList<GroupedInventoryItem> GroupedInventory => 
+            _backingGroupInventoryItems.AsReadOnly();
+
+        [JsonIgnore]
+        public IReadOnlyList<GameItem> Weapons =>
+            _backingInventory.ItemsThatAre(GameItem.ItemCategory.Weapon);
+
+        [JsonIgnore]
+        public IReadOnlyList<GameItem> Consumables =>
+            _backingInventory.ItemsThatAre(GameItem.ItemCategory.Consumable);
+
+        [JsonIgnore]
+        public bool HasConsumable => Consumables.Any();
+
+        #endregion
+
+        #region Constructors
+        public Inventory(IEnumerable<GameItem> items = null)
+        {
+            if (items == null)
+            {
+                return;
+            }
+
+            foreach(GameItem item in items)
+            {
+                _backingInventory.Add(item);
+                AddItemToGroupedInventory(item);
+            }
+        }
+        #endregion
+
+        #region public functions
+        public bool HasAllTheseItems(IEnumerable<ItemQuantity> items)
+        {
+            return items.All(item => Items.Count(i => i.ItemTypeID == item.ItemID) >= item.Quantity);
+        }
+        #endregion
+
+        #region private functions
+        private void AddItemToGroupedInventory(GameItem item)
+        {
+            if (item.IsUnique)
+            {
+                _backingGroupInventoryItems.Add(new GroupedInventoryItem(item, 1));
+            }
+            else
+            {
+                if (_backingGroupInventoryItems.All(gi => gi.Item.ItemTypeID != item.ItemTypeID))
+                {
+                    _backingGroupInventoryItems.Add(new GroupedInventoryItem(item, 0));
+                }
+                _backingGroupInventoryItems.First(gi => gi.Item.ItemTypeID == item.ItemTypeID).Quantity++;
+            }
+        }
+        #endregion
+
+    }
+}
